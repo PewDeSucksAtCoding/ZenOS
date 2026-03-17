@@ -35,7 +35,7 @@ inb:
     ret
 
 _start:
-    cli ; Prevents a Triple fault from happening --> Disables clock ticking and keyboard, because the OS doesn't yet handle them
+    cli
     ; C requires a stack for its local variables and functions
     ; Therefore we move to our allocated memory space to handle our C-code
     mov esp, stack_top
