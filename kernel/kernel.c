@@ -6,14 +6,11 @@
 #include "drivers/vga.h"
 #include "drivers/pic.h"
 
-char cwd[] = "/kernel>"; // Current working directory (just for aesthetics)
-
 int kernel_main() {
     InitConsole(); // Running only once
     init_idt();
     pic_remap();
     MoveCursor(0, 0); // Setting the cursor to the left corner in the beginning
-    ConsolePrint(cwd, 0x0F);
 
     asm volatile("sti");
     

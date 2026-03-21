@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "drivers/vga.h"
 #include "cpu/byteIO.h"
+#include "drivers/keybr_driver.h"
 
 // This struct is what assembly pushes to the stack
 typedef struct {
@@ -20,9 +21,9 @@ void isr_handler(registers_t *regs) {
         outb(0x20, 0x20); // Handling EOI (End Of Interrupt) // EOI for Master
 
         if (regs->int_no == 33) {
-            inb(0x60); // Clearing the scancode off
+            KeybrMain();
 
-            ConsolePrint("Key Press Was Detected", 0x0F);
+            inb(0x60); // Clearing the scancode off
         }
     }
     else if (regs->int_no < 32) {

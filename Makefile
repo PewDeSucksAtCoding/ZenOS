@@ -13,7 +13,8 @@ OBJ = boot.o \
       kernel/kernel.o \
       drivers/vga.o \
       drivers/pic.o \
-      cpu/byteIO.o
+      cpu/byteIO.o \
+      drivers/keybr_driver.o
 
 all: myos.bin
 
