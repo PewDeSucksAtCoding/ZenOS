@@ -12,7 +12,7 @@ typedef struct {
 
 void isr_handler(registers_t *regs) {
     if (regs->int_no == 0) {
-        ConsolePrint("Division by zero is not allowed!", 0x0C);
+        ConsolePrint("Division by zero is not allowed!", 0x0C, 1);
         asm volatile("cli; hlt");
     }
     else if (regs->int_no >= 32) {
@@ -27,7 +27,7 @@ void isr_handler(registers_t *regs) {
         }
     }
     else if (regs->int_no < 32) {
-        ConsolePrint("Generic Exception. System.", 0x0F);
+        ConsolePrint("Generic Exception. System halted.", 0x0F, 1);
         asm volatile("cli; hlt");
     }
 }

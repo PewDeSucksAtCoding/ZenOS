@@ -10,11 +10,13 @@ OBJ = boot.o \
       cpu/IDT.o \
       cpu/ISR_handler.o \
       cpu/ISR.o \
-      kernel/kernel.o \
+      cpu/byteIO.o \
       drivers/vga.o \
       drivers/pic.o \
-      cpu/byteIO.o \
-      drivers/keybr_driver.o
+      drivers/keybr_driver.o \
+      kernel/kernel.o \
+      kernel/string.o \
+      kernel/shell.o
 
 all: myos.bin
 

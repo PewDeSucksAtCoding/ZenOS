@@ -1,5 +1,7 @@
 #include "vga.h"
 #include "cpu/byteIO.h"
+#include "kernel/string.h"
+#include "kernel/shell.h"
 
 char *VIDEO_MEMORY = (char*)0xB8000;
 char TERMINAL_COLOR = 0x0F; // Plain white for the color (nothing will show in the console)
@@ -7,18 +9,30 @@ char TERMINAL_COLOR = 0x0F; // Plain white for the color (nothing will show in t
 int x = 0;
 int y = 0;
 
-char cwd[] = "$/kernel>"; // Current working directory (just for aesthetics)
+char cwd[] = "%/kernel>"; // Current working directory (just for aesthetics)
+char cmdBuffer[128];
+int bufferIndex = 0;
 
 void HandleCWD(int PrintOnly, char new_cwd[]) {
     if (PrintOnly) {
-        ConsolePrint(cwd, TERMINAL_COLOR);
+        ConsolePrint(cwd, TERMINAL_COLOR, 0);
     }
 
     if (new_cwd) {}
 }
 
+void ClearBuffer() {
+    for (int i = 0; i < 128; i++) {
+        cmdBuffer[i] = '\0';
+    }
+    bufferIndex = 0;
+}
+
 // Clearing the console from the 'crap' BIOS left behind
 void InitConsole() {
+    // Making sure we start from (0, 0) on clear
+    x = 0;
+    y = 0;
     int cursor_pos = (y * 80 + x) * 2;
     // The VGA-memory is a 80 row and 25 collum space and his means there is a total of 2000 characters (80x25) in this space
     // And since each character is 2 bytes long (character attribute + color attribute), there is a total of 2*2000B = 4kB of memory for VGA
@@ -32,7 +46,7 @@ void InitConsole() {
     // We still have to reset our cursor back to (0,0) so that ConsolePrint() doesn't crash
     x = 0;
     y = 0;
-    ConsolePrint(cwd, TERMINAL_COLOR);
+    ConsolePrint(cwd, TERMINAL_COLOR, 0);
 }
 
 void MoveCursor(uint8_t x, uint8_t y) {
@@ -50,7 +64,12 @@ void MoveCursor(uint8_t x, uint8_t y) {
     outb(0x3D5, (uint8_t) ((pos >> 8) & 0xFF));
 }
 
-void ConsolePrint(char *string, char bgr_color) {
+void ConsolePrint(char *string, char bgr_color, int newline) {
+    if (newline) {
+        x = 0;
+        y += 1;
+    }
+
     int cursor_pos = (y * 80 + x) * 2;
     for (int i = 0; string[i] != '\0'; i++) {
         VIDEO_MEMORY[cursor_pos] = string[i];
@@ -69,6 +88,8 @@ void ConsolePrint(char *string, char bgr_color) {
 
 void PrintChar(char character) {
     int cursor_pos = (y * 80 + x) * 2;
+    cmdBuffer[bufferIndex] = character;
+    bufferIndex += 1;
     VIDEO_MEMORY[cursor_pos] = character;
     VIDEO_MEMORY[cursor_pos + 1] = TERMINAL_COLOR;
     x += 1;
@@ -82,13 +103,12 @@ void PrintChar(char character) {
 
 void Backspace() {
     int cursor_pos = (y * 80 + x) * 2;
-    if (!x && !y) {
-        return;
-    }
-    if (x <= 9) {
+    if (x <= strlen(cwd)) {
         return;
     }
 
+    cmdBuffer[bufferIndex] = '\0';
+    bufferIndex -= 1;
     VIDEO_MEMORY[cursor_pos - 1] = 0x0F;
     VIDEO_MEMORY[cursor_pos - 2] = ' ';
 
@@ -102,8 +122,15 @@ void Backspace() {
 }
 
 void Enter() {
-    x = 0;
-    y += 1;
-    MoveCursor(x, y);
-    HandleCWD(1, "");
+    cmdBuffer[bufferIndex] = '\0';
+    int return_num = parse_command(cmdBuffer);
+    if (return_num == 1) {
+        // Nothing to do if we clear the console. Check shell.c
+    } else {
+        x = 0;
+        y += 1;
+        MoveCursor(x, y);
+        HandleCWD(1, cwd);
+    }
+    ClearBuffer();
 }

@@ -29,7 +29,7 @@ isr33:
 isr_common:
     pusha ; Saving EAX, ECX, EDX, EBX, ESP, ESI, EDI
 
-    push esp ; Pushing a pointer to the registerys C needs in isr_handler()
+    push esp ; Pushing a pointer to the registeries C needs in isr_handler()
     call isr_handler
 
     pop eax

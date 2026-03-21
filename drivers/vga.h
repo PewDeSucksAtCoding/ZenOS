@@ -5,7 +5,7 @@
 
 void InitConsole();
 void HandleCWD(int PrintOnly, char new_cwd[]);
-void ConsolePrint(char *string, char bgr_color);
+void ConsolePrint(char *string, char bgr_color, int newline);
 void PrintChar(char character);
 void MoveCursor(uint8_t x, uint8_t y);
 void Enter();
