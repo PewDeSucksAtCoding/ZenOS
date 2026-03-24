@@ -9,23 +9,16 @@ char TERMINAL_COLOR = 0x0F; // Plain white for the color (nothing will show in t
 int x = 0;
 int y = 0;
 
-char cwd[] = "%/kernel>"; // Current working directory (just for aesthetics)
+char cwd[64] = "%/kernel>"; // Current working directory (just for aesthetics)
 char cmdBuffer[128];
 int bufferIndex = 0;
 
-void HandleCWD(int PrintOnly, char new_cwd[]) {
+void HandleCWD(int PrintOnly, char *new_cwd) {
     if (PrintOnly) {
         ConsolePrint(cwd, TERMINAL_COLOR, 0);
+    } else {
+        strcpy(cwd, new_cwd, 1);
     }
-
-    if (new_cwd) {}
-}
-
-void ClearBuffer() {
-    for (int i = 0; i < 128; i++) {
-        cmdBuffer[i] = '\0';
-    }
-    bufferIndex = 0;
 }
 
 // Clearing the console from the 'crap' BIOS left behind
@@ -132,5 +125,6 @@ void Enter() {
         MoveCursor(x, y);
         HandleCWD(1, cwd);
     }
-    ClearBuffer();
+    clearstring(cmdBuffer);
+    bufferIndex = 0;
 }
