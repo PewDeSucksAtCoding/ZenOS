@@ -1,23 +1,33 @@
-# Creates a myos.bin file that is runnable with QEMU, check kernel.c
-
 AS = nasm
 CC = i686-elf-gcc
 LD = i686-elf-ld
 
-# Telling the makefile translator to find header-files from the project root
-# --> Allows us to do #include "drivers/vga.h" instead of a long system file path
 CFLAGS = -ffreestanding -O2 -Wall -Wextra -I. -std=gnu99
 
-# All objects need to be translated before linking
-OBJ = boot.o kernel/kernel.o drivers/vga.o cpu/byteIO.o
+# All objects
+OBJ = boot.o \
+      cpu/IDT_asm.o \
+      cpu/IDT.o \
+      cpu/ISR_handler.o \
+      cpu/ISR.o \
+      cpu/byteIO.o \
+      drivers/vga.o \
+      drivers/pic.o \
+      drivers/keybr_driver.o \
+      kernel/kernel.o \
+      kernel/string.o \
+      kernel/shell.o
 
 all: myos.bin
 
-boot.o: boot.s
-	$(AS) -f elf32 boot.s -o boot.o
+%.o: %.s
+	$(AS) -f elf32 $< -o $@
 
 %.o: %.c
 	$(CC) -c $< -o $@ $(CFLAGS)
+
+boot.o: boot.s
+	$(AS) -f elf32 boot.s -o boot.o
 
 myos.bin: $(OBJ) linker.ld
 	$(LD) -T linker.ld -o myos.bin $(OBJ)

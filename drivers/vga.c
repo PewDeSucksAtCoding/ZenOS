@@ -1,12 +1,32 @@
 #include "vga.h"
 #include "cpu/byteIO.h"
+#include "kernel/string.h"
+#include "kernel/shell.h"
 
 char *VIDEO_MEMORY = (char*)0xB8000;
 char TERMINAL_COLOR = 0x0F; // Plain white for the color (nothing will show in the console)
-int cursor_pos = 0; // Latest index in which the VGA-memory was written to
+// x and y coordinates of the physical cursor
+int x = 0;
+int y = 0;
+
+char cwd[64] = "%/kernel>"; // Current working directory (just for aesthetics)
+char cmdBuffer[128];
+int bufferIndex = 0;
+
+void HandleCWD(int PrintOnly, char *new_cwd) {
+    if (PrintOnly) {
+        ConsolePrint(cwd, TERMINAL_COLOR, 0);
+    } else {
+        strcpy(cwd, new_cwd, 1);
+    }
+}
 
 // Clearing the console from the 'crap' BIOS left behind
 void InitConsole() {
+    // Making sure we start from (0, 0) on clear
+    x = 0;
+    y = 0;
+    int cursor_pos = (y * 80 + x) * 2;
     // The VGA-memory is a 80 row and 25 collum space and his means there is a total of 2000 characters (80x25) in this space
     // And since each character is 2 bytes long (character attribute + color attribute), there is a total of 2*2000B = 4kB of memory for VGA
     // Let's overwrite it all so we can start from scratch
@@ -16,8 +36,10 @@ void InitConsole() {
         cursor_pos += 2;
     }
 
-    // We still have to reset our cursor back to 0 so that ConsolePrint() doesn't crash
-    cursor_pos = 0;
+    // We still have to reset our cursor back to (0,0) so that ConsolePrint() doesn't crash
+    x = 0;
+    y = 0;
+    ConsolePrint(cwd, TERMINAL_COLOR, 0);
 }
 
 void MoveCursor(uint8_t x, uint8_t y) {
@@ -35,28 +57,74 @@ void MoveCursor(uint8_t x, uint8_t y) {
     outb(0x3D5, (uint8_t) ((pos >> 8) & 0xFF));
 }
 
-void ConsolePrint(char *string, char bgr_color) {
+void ConsolePrint(char *string, char bgr_color, int newline) {
+    if (newline) {
+        x = 0;
+        y += 1;
+    }
+
+    int cursor_pos = (y * 80 + x) * 2;
     for (int i = 0; string[i] != '\0'; i++) {
         VIDEO_MEMORY[cursor_pos] = string[i];
         VIDEO_MEMORY[cursor_pos + 1] = bgr_color;
         cursor_pos += 2;
-    }
+        x += 1;
+        }
 
     // Logic for moving the cursor with printed text
-
-    int physical_cursor_pos = cursor_pos / 2; // Because the VGA-memory has a character and color attribute, we need to devide that cursor position by two to get the actual cursor position
-    int y = physical_cursor_pos / 80; // the y-coordinate will be the rounded down, so that if the physical cursor position is e.g. 79, we stay in the first line (79/80≈0)
-    if (y > 0) { // if the y-coordinate is bigger than 0 (aka in another line), we need to seperately calculate the x-coordinate 
-        int x = physical_cursor_pos % 80; // The x-coordinate will be whatever is left when the physical cursor position is divided by 80 (e.g. 165 % 80 = 5)
-        MoveCursor(x, y);
-    } else {
-        MoveCursor(physical_cursor_pos, 0); // If y = 0, we can just use the physical cursor position for the x-coordinate
+    if (x >= 80) {
+        x = 0;
+        y += 1;
     }
-    // --- EXAMPLE CALCULATION WITH THE LOGIC ABOVE ---
+    MoveCursor(x, y);
+}
 
-    // 1. cursor_pos = 256 (it has been moved there by this function)
-    // 2. Calculating the physical cursor position (because of the character + color attributes): physical_cursor_pos = 256/2 = 128
-    // 3. Calculating the y-coordinate: y = 128 / 80 = 1 (when rounded down)
-    // 4. Calculating the x-coordinate: x = 128 % 80 = 48
-    // 5. Finally utting the physical cursor to its right place: (x, y) --> (1, 48) in the VGA-matrix
+void PrintChar(char character) {
+    int cursor_pos = (y * 80 + x) * 2;
+    cmdBuffer[bufferIndex] = character;
+    bufferIndex += 1;
+    VIDEO_MEMORY[cursor_pos] = character;
+    VIDEO_MEMORY[cursor_pos + 1] = TERMINAL_COLOR;
+    x += 1;
+
+    if (x >= 80) {
+        x = 0;
+        y += 1;
+    }
+    MoveCursor(x, y);
+}
+
+void Backspace() {
+    int cursor_pos = (y * 80 + x) * 2;
+    if (x <= strlen(cwd)) {
+        return;
+    }
+
+    cmdBuffer[bufferIndex] = '\0';
+    bufferIndex -= 1;
+    VIDEO_MEMORY[cursor_pos - 1] = 0x0F;
+    VIDEO_MEMORY[cursor_pos - 2] = ' ';
+
+    if (x == 0) {
+        x = 79;
+        y -= 1;
+    } else {
+        x -= 1;
+    }
+    MoveCursor(x, y);
+}
+
+void Enter() {
+    cmdBuffer[bufferIndex] = '\0';
+    int return_num = parse_command(cmdBuffer);
+    if (return_num == 1) {
+        // Nothing to do if we clear the console. Check shell.c
+    } else {
+        x = 0;
+        y += 1;
+        MoveCursor(x, y);
+        HandleCWD(1, cwd);
+    }
+    clearstring(cmdBuffer);
+    bufferIndex = 0;
 }
